@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .alert-box { 
+            border-left: 4px solid #d32f2f; 
+            background: #ffebee; 
+            padding: 15px; 
+            margin: 20px 0; 
+        }
+        .alert-box.warning { border-color: #ff9800; background: #fff3e0; }
+        .stats { background: #f5f5f5; padding: 15px; border-radius: 5px; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🚨 {{ title }}</h2>
+        
+        <div class="alert-box {% if priority == 'high' %}critical{% else %}warning{% endif %}">
+            <h3>{{ drawer_name }}</h3>
+            <p><strong>Current Count:</strong> {{ current_count }} parts</p>
+            <p><strong>Threshold:</strong> {{ threshold }} parts</p>
+            <p><strong>Status:</strong> {{ priority|upper }}</p>
+            <p><strong>Time:</strong> {{ timestamp }}</p>
+        </div>
+        
+        {% if image_path %}
+        <div style="text-align: center; margin: 20px 0;">
+            <img src="cid:alert_image" style="max-width: 100%; border: 1px solid #ddd;" />
+        </div>
+        {% endif %}
+        
+        <div class="footer">
+            <p>This is an automated alert from the Inventory Monitoring System.</p>
+            <p>Please check the drawer and restock if necessary.</p>
+        </div>
+    </div>
+</body>
+</html>

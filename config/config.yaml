@@ -1,0 +1,134 @@
+# Main Configuration File
+project:
+  name: "Inventory Monitoring System"
+  version: "1.0.0"
+  timezone: "America/Chicago"
+
+# Video source configuration
+video:
+  # Directory to watch for new videos
+  watch_directory: "data/videos"
+  # Video file naming convention: drawer_YYYYMMDD_HHMMSS.mp4
+  filename_pattern: "*_*.mp4"
+  # Process videos in chronological order
+  process_order: "timestamp"
+  # Archive processed videos
+  archive_processed: true
+  archive_directory: "data/processed"
+  # Output settings
+  save_annotated_video: true
+  output_directory: "data/outputs/videos"
+  # Processing
+  skip_frames: 5  # Process every 5th frame for speed
+  max_video_age_hours: 24  # Ignore videos older than 24 hours
+
+# HuggingFace model configuration
+model:
+  name: "facebook/detr-resnet-50"
+  # Alternative models:
+  # "hustvl/yolos-tiny" - faster
+  # "google/owlvit-base-patch32" - text-based detection
+  confidence_threshold: 0.6
+  device: "cpu"  # or "cuda" if you have GPU
+  
+  # For open-vocabulary models (OWL-ViT)
+  text_queries:
+    - "screw"
+    - "bolt"
+    - "nut"
+    - "washer"
+    - "small part"
+    - "fastener"
+
+# Drawer/partition definitions
+# Adjust coordinates after recording your first video
+drawers:
+  partition_1:
+    name: "Section A - Screws"
+    roi: [50, 50, 400, 350]  # [x1, y1, x2, y2] in pixels
+    min_threshold: 15
+    critical_threshold: 5
+    part_type: "M8 screws"
+    
+  partition_2:
+    name: "Section B - Bolts"
+    roi: [450, 50, 800, 350]
+    min_threshold: 20
+    critical_threshold: 8
+    part_type: "M6 bolts"
+    
+  partition_3:
+    name: "Section C - Nuts"
+    roi: [850, 50, 1200, 350]
+    min_threshold: 25
+    critical_threshold: 10
+    part_type: "Hex nuts"
+
+# Alert configuration
+alerts:
+  enabled: true
+  methods:
+    - email
+    - log
+  
+  # Email settings
+  email:
+    enabled: true
+    provider: "sendgrid"  # or "smtp"
+    subject_prefix: "[Inventory Alert]"
+    include_images: true
+    
+  # Alert rules
+  rules:
+    critical:
+      threshold_type: "below"  # below critical_threshold
+      priority: "high"
+      immediate_notification: true
+    
+    warning:
+      threshold_type: "below"  # below min_threshold
+      priority: "medium"
+      immediate_notification: false
+      
+    restock_needed:
+      threshold_type: "below"
+      threshold_percentage: 30  # 30% of baseline
+      priority: "medium"
+      immediate_notification: false
+  
+  # Rate limiting (avoid spam)
+  cooldown_minutes: 60  # Don't send same alert twice within 60 min
+
+# Daily report configuration
+reports:
+  enabled: true
+  schedule:
+    daily: true
+    time: "08:00"  # 8 AM
+    weekends: false
+  
+  include:
+    - summary_statistics
+    - trend_charts
+    - alert_history
+    - low_stock_forecast
+    - video_thumbnails
+  
+  format: "html"  # html, pdf, or both
+  
+  recipients:
+    - "manager@company.com"
+    - "inventory@company.com"
+
+# Database for tracking
+database:
+  enabled: true
+  type: "sqlite"
+  path: "data/inventory_tracking.db"
+  
+# Logging
+logging:
+  level: "INFO"
+  file: "logs/inventory_monitor.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5

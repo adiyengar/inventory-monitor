@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual Environment
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+.cursor/
+
+# Data & Videos
+data/videos/*.mp4
+data/videos/*.avi
+data/videos/*.mov
+data/processed/*
+data/outputs/*
+!data/videos/.gitkeep
+!data/processed/.gitkeep
+!data/outputs/.gitkeep
+
+# Models
+models/
+.cache/
+*.pt
+*.pth
+
+# Sensitive
+.env
+config/secrets.yaml
+*.log
+
+# Logs
+logs/*.log
+
+# Reports
+data/outputs/reports/*.html
+data/outputs/reports/*.pdf
+
+# macOS
+.DS_Store
+.AppleDouble
+._*

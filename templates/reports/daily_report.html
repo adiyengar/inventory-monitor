@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Daily Inventory Report - {{ report_date }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }
+        .stat-card { background: #f5f5f5; padding: 20px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 32px; font-weight: bold; color: #667eea; }
+        .stat-label { color: #666; font-size: 14px; margin-top: 5px; }
+        .chart { margin: 30px 0; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .alert-list { margin: 20px 0; }
+        .alert-item { background: #fff3e0; border-left: 4px solid #ff9800; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .alert-item.critical { background: #ffebee; border-color: #d32f2f; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Daily Inventory Report</h1>
+        <p>{{ report_date }}</p>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ statistics.total_snapshots }}</div>
+            <div class="stat-label">Total Checks</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ statistics.drawers_monitored }}</div>
+            <div class="stat-label">Drawers Monitored</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ statistics.total_alerts }}</div>
+            <div class="stat-label">Total Alerts</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ statistics.critical_alerts }}</div>
+            <div class="stat-label">Critical Alerts</div>
+        </div>
+    </div>
+    
+    {% if charts.timeline %}
+    <div class="chart">
+        <h3>Inventory Levels Timeline</h3>
+        <img src="data:image/png;base64,{{ charts.timeline }}" style="max-width: 100%;" />
+    </div>
+    {% endif %}
+    
+    {% if alerts %}
+    <div class="alert-list">
+        <h3>Recent Alerts</h3>
+        {% for alert in alerts %}
+        <div class="alert-item {{ 'critical' if alert.alert_type == 'CRITICAL' else '' }}">
+            <strong>{{ alert.drawer_id }}</strong> - {{ alert.alert_type }}<br>
+            Count: {{ alert.part_count }} / Threshold: {{ alert.threshold }}<br>
+            <small>{{ alert.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</body>
+</html>
