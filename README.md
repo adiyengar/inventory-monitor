@@ -10,6 +10,7 @@ Automated inventory monitoring for drawer partitions using computer vision and H
 - 📊 Daily reports with charts and trends
 - 🗄️ SQLite database for historical tracking
 - ⏰ Timeline-based analysis
+- 🌐 Streamlit web interface for easy video upload and management
 
 ## Quick Start
 
@@ -47,6 +48,19 @@ Edit `config/config.yaml` and adjust ROI coordinates for your drawer partitions.
 
 ### 4. Run Detection
 
+**Option A: Using Streamlit Web Interface (Recommended)**
+
+```bash
+streamlit run app.py
+```
+
+Then open your browser to `http://localhost:8501` and:
+- Upload videos through the web interface
+- View statistics and processed videos
+- Monitor inventory status
+
+**Option B: Using Command Line**
+
 ```bash
 python main.py
 ```
@@ -75,6 +89,9 @@ See `config/config.yaml` for all settings:
 
 ```
 inventory-monitor/
+├── app.py             # Streamlit web interface
+├── main.py            # Main CLI application
+├── setup.py           # Package setup script
 ├── src/
 │   ├── core/          # Video processing & detection
 │   ├── models/        # HuggingFace models
@@ -93,24 +110,39 @@ inventory-monitor/
 
 ## Usage
 
-### Record New Video
+### Web Interface (Streamlit)
+
+Launch the web interface:
+```bash
+streamlit run app.py
+```
+
+Features:
+- **Upload Video**: Upload videos directly through the browser
+- **Process Videos**: View and process queued videos
+- **View Statistics**: See processed video counts, alerts, and inventory snapshots
+- **Settings**: View current configuration
+
+### Command Line
+
+#### Record New Video
 ```bash
 python scripts/record_drawer.py
 ```
 
-### Process Single Video
+#### Process Single Video
 ```bash
 python main.py --video data/videos/drawer_20250126_140000.mp4
 ```
 
-### Process All Videos
+#### Process All Videos
 ```bash
 python main.py --process-all
 ```
 
-### Generate Report
+#### Generate Report
 ```bash
-python -m src.reports.daily_report
+python main.py --generate-report
 ```
 
 ## Email Setup

@@ -29,6 +29,7 @@ data/videos/*.avi
 data/videos/*.mov
 data/processed/*
 data/outputs/*
+data/inventory_tracking.db
 !data/videos/.gitkeep
 !data/processed/.gitkeep
 !data/outputs/.gitkeep

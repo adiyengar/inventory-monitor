@@ -29,6 +29,7 @@ plotly==5.17.0
 # Web Dashboard (optional)
 flask==3.0.0
 gradio==4.7.1
+streamlit==1.28.0
 
 # Database (for tracking)
 sqlalchemy==2.0.21
