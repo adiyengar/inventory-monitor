@@ -27,7 +27,7 @@ If you encounter authentication issues, you may need to:
 
 1. **Use SSH instead of HTTPS:**
    ```bash
-   git remote set-url origin git@github.com:aiyengar/inventory-monitor.git
+   git remote set-url origin git@github.com:adiyengar/inventory-monitor.git
    git push origin main
    ```
 

@@ -26,7 +26,7 @@
 ### 5. Verify Push Success
 - After pushing, check the "History" tab
 - Your commit should now show it's been pushed to `origin/main`
-- You can also verify by visiting: `https://github.com/aiyengar/inventory-monitor`
+- You can also verify by visiting: `https://github.com/adiyengar/inventory-monitor`
 - You should see your new files (`app.py`, `setup.py`, etc.) in the repository
 
 ## Troubleshooting
