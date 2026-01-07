@@ -1,3 +1,0 @@
-# System packages for Streamlit Cloud
-# This file is optional but can help with dependencies
-
