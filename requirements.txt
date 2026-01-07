@@ -1,16 +1,11 @@
 # Minimal requirements for Streamlit Cloud deployment
-# This only includes what app.py actually needs for the web interface
-# For full video processing capabilities, see requirements-full.txt
+# Only includes packages actually imported by app.py
 
-# Web Dashboard
+# Web framework
 streamlit>=1.28.0
 
-# Utilities
+# Configuration file parsing
 pyyaml>=6.0.1
-python-dotenv>=1.0.0
 
-# Database (for tracking)
+# Database operations
 sqlalchemy>=2.0.21
-
-# Date utilities
-python-dateutil>=2.8.2
