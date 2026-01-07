@@ -1,6 +1,5 @@
 # Minimal requirements for Streamlit Cloud deployment
-# This only includes what app.py actually needs for the web interface
-# For full video processing capabilities, see requirements-full.txt
+# This only includes what app.py actually needs
 
 # Web Dashboard
 streamlit>=1.28.0
@@ -14,3 +13,4 @@ sqlalchemy>=2.0.21
 
 # Date utilities
 python-dateutil>=2.8.2
+
