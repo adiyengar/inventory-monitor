@@ -73,11 +73,12 @@ def parse_video_timestamp(filename):
 def get_videos_to_process(config):
     """Get list of videos to process, sorted by timestamp"""
     watch_dir = Path(config['video']['watch_directory'])
-    pattern = config['video'].get('filename_pattern', '*.mp4')
-    
+    pattern = config['video'].get('filename_pattern', '*_*.*')
+    extensions = {ext.lower().lstrip('.') for ext in config['video'].get('video_extensions', ['mp4'])}
+
     videos = []
     for video_path in watch_dir.glob(pattern):
-        if video_path.is_file():
+        if video_path.is_file() and video_path.suffix.lower().lstrip('.') in extensions:
             timestamp = parse_video_timestamp(video_path.name)
             
             # Check if video is too old
@@ -123,7 +124,23 @@ def process_video_file(video_info, config, detector, monitor, db_session, alert_
         )
         db_session.add(video_record)
         db_session.commit()
-        
+
+        # Reject videos whose frame size doesn't match what the drawer ROIs
+        # were drawn against (e.g. a different camera orientation) — applying
+        # those ROI coordinates to a mismatched frame silently measures the
+        # wrong region.
+        expected_size = config['video'].get('roi_frame_size')
+        if expected_size and [video.width, video.height] != list(expected_size):
+            logger.error(
+                f"Skipping {video_path.name}: frame size {video.width}x{video.height} "
+                f"doesn't match the size partitions were drawn at ({expected_size[0]}x{expected_size[1]}). "
+                f"Re-run 'python main.py --setup' on this video, or re-record with the camera in the same orientation."
+            )
+            video_record.success = False
+            db_session.commit()
+            video.release()
+            return False
+
         # Setup output video if enabled
         output_path = None
         out = None
@@ -292,15 +309,96 @@ def process_video_file(video_info, config, detector, monitor, db_session, alert_
         db_session.commit()
         return False
 
+def check_nightly_depletion(config, db_session, alert_system, logger):
+    """
+    Compare each drawer's first vs. last recorded count across a processed
+    batch of videos, and alert if it has fallen below alerts.depletion_threshold
+    (default 50%) of its initial amount.
+    """
+    depletion_threshold = config['alerts'].get('depletion_threshold', 0.5)
+    drawers = config.get('drawers', {})
+
+    for drawer_id, drawer_config in drawers.items():
+        first_snapshot = (
+            db_session.query(InventorySnapshot)
+            .filter(InventorySnapshot.drawer_id == drawer_id)
+            .order_by(InventorySnapshot.timestamp.asc())
+            .first()
+        )
+        last_snapshot = (
+            db_session.query(InventorySnapshot)
+            .filter(InventorySnapshot.drawer_id == drawer_id)
+            .order_by(InventorySnapshot.timestamp.desc())
+            .first()
+        )
+
+        if not first_snapshot or not last_snapshot or first_snapshot.id == last_snapshot.id:
+            continue
+
+        initial_count = first_snapshot.part_count
+        final_count = last_snapshot.part_count
+        if initial_count <= 0:
+            continue
+
+        ratio = final_count / initial_count
+        if ratio >= depletion_threshold:
+            continue
+
+        logger.warning(
+            f"NIGHTLY DEPLETION ALERT: {drawer_id} dropped to {final_count}/{initial_count} "
+            f"({ratio:.0%}) — below {depletion_threshold:.0%} threshold"
+        )
+
+        alert = Alert(
+            drawer_id=drawer_id,
+            alert_type='DEPLETION',
+            part_count=final_count,
+            threshold=int(initial_count * depletion_threshold),
+            created_at=last_snapshot.timestamp
+        )
+        db_session.add(alert)
+
+        if config['alerts'].get('enabled') and alert_system:
+            drawer_name = drawer_config.get('name', drawer_id)
+            alert_data = {
+                'title': f"Nightly Depletion Alert - {drawer_name}",
+                'drawer_name': drawer_name,
+                'current_count': final_count,
+                'threshold': int(initial_count * depletion_threshold),
+                'timestamp': last_snapshot.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                'priority': 'high',
+                'image_path': None
+            }
+            try:
+                alert_system.send_alert(alert_data)
+                alert.sent_at = datetime.now()
+                logger.warning(f"Depletion alert emailed for {drawer_id}")
+            except Exception as e:
+                logger.error(f"Failed to send depletion alert email: {e}")
+
+    db_session.commit()
+
 def main():
     parser = argparse.ArgumentParser(description='Inventory Monitoring System')
     parser.add_argument('--config', default='config/config.yaml', help='Config file path')
     parser.add_argument('--video', help='Process specific video file')
     parser.add_argument('--process-all', action='store_true', help='Process all videos in watch directory')
-    parser.add_argument('--generate-report', action='store_true', help='Generate daily report')
-    
+    parser.add_argument('--generate-report', action='store_true', help='Generate inventory trend report')
+    parser.add_argument('--days', type=int, default=5, help='Number of days to include in the report (default: 5)')
+    parser.add_argument('--setup', action='store_true', help='Draw and label partitions on a video, then update config.yaml')
+    parser.add_argument('--frame', type=int, help='With --setup: frame number to draw on (skips the interactive frame picker)')
+
     args = parser.parse_args()
-    
+
+    if args.setup:
+        import subprocess
+        setup_cmd = [sys.executable, str(Path(__file__).parent / 'scripts' / 'find_roi.py'), '--config', args.config]
+        if args.video:
+            setup_cmd.append(args.video)
+        if args.frame is not None:
+            setup_cmd += ['--frame', str(args.frame)]
+        sys.exit(subprocess.run(setup_cmd).returncode)
+
     # Load configuration
     with open(args.config) as f:
         config = yaml.safe_load(f)
@@ -341,10 +439,11 @@ def main():
     
     try:
         if args.generate_report:
-            # Generate report
-            logger.info("Generating daily report...")
+            logger.info(f"Generating {args.days}-day inventory trend report...")
             report_gen = DailyReportGenerator(config, db_session)
-            report_path = report_gen.generate_report()
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=args.days)
+            report_path = report_gen.generate_report(start_date=start_date, end_date=end_date)
             logger.info(f"Report saved to: {report_path}")
             
         elif args.video:
@@ -363,7 +462,7 @@ def main():
             if not videos:
                 logger.info("No videos to process")
                 logger.info(f"Place videos in: {config['video']['watch_directory']}")
-                logger.info(f"Format: drawer_YYYYMMDD_HHMMSS.mp4")
+                logger.info(f"Format: drawer_YYYYMMDD_HHMMSS.mp4 (or .mov)")
             else:
                 logger.info(f"Found {len(videos)} videos to process")
                 
@@ -375,7 +474,10 @@ def main():
                     
                     if not success:
                         logger.error(f"Failed to process: {video_info['name']}")
-    
+
+                logger.info("Checking end-of-night depletion...")
+                check_nightly_depletion(config, db_session, alert_system, logger)
+
     except KeyboardInterrupt:
         logger.info("\nStopped by user")
     except Exception as e:

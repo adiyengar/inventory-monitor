@@ -24,9 +24,7 @@ env/
 .cursor/
 
 # Data & Videos
-data/videos/*.mp4
-data/videos/*.avi
-data/videos/*.mov
+data/videos/*
 data/processed/*
 data/outputs/*
 data/inventory_tracking.db
@@ -34,8 +32,11 @@ data/inventory_tracking.db
 !data/processed/.gitkeep
 !data/outputs/.gitkeep
 
+# Config backups written by scripts/find_roi.py
+config/*.bak
+
 # Models
-models/
+/models/
 .cache/
 *.pt
 *.pth

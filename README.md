@@ -44,7 +44,14 @@ Videos are saved with timestamp: `drawer_YYYYMMDD_HHMMSS.mp4`
 
 ### 3. Configure Drawers
 
-Edit `config/config.yaml` and adjust ROI coordinates for your drawer partitions.
+Run the setup wizard to draw and label each partition on your test video —
+it writes the ROI coordinates straight into `config/config.yaml`:
+
+```bash
+python main.py --setup
+```
+
+(Or edit `config/config.yaml` by hand and adjust ROI coordinates yourself.)
 
 ### 4. Run Detection
 
@@ -71,11 +78,11 @@ Reports are saved to `data/outputs/reports/`
 
 ## Video File Naming Convention
 
-Use this pattern: `{drawer_id}_{YYYYMMDD}_{HHMMSS}.mp4`
+Use this pattern: `{drawer_id}_{YYYYMMDD}_{HHMMSS}.{mp4|mov}`
 
 Examples:
 - `partition_1_20250126_143022.mp4`
-- `section_a_20250126_143045.mp4`
+- `section_a_20250126_143045.mov`
 
 ## Configuration
 
@@ -168,7 +175,7 @@ SENDGRID_API_KEY=your-api-key
 ## Next Steps
 
 - [ ] Record test videos of your drawer
-- [ ] Adjust ROI coordinates in config
+- [ ] Run `python main.py --setup` to draw and label partitions
 - [ ] Test email alerts
 - [ ] Set up daily report schedule
 - [ ] Fine-tune detection thresholds

@@ -6,133 +6,120 @@ project:
 
 # Video source configuration
 video:
-  # Directory to watch for new videos
   watch_directory: "data/videos"
-  # Video file naming convention: drawer_YYYYMMDD_HHMMSS.mp4
-  filename_pattern: "*_*.mp4"
-  # Process videos in chronological order
+  roi_frame_size: [1080, 1920]  # videos must match this frame size or they're skipped as a mismatch
+  # Naming convention: partitionID_YYYYMMDD_HHMMSS.<ext>
+  # Example: partition_screws_20260409_143000.mp4
+  filename_pattern: "*_*.*"
+  video_extensions: ["mp4", "mov"]  # case-insensitive
   process_order: "timestamp"
-  # Archive processed videos
   archive_processed: true
   archive_directory: "data/processed"
-  # Output settings
   save_annotated_video: true
   output_directory: "data/outputs/videos"
-  # Processing
-  skip_frames: 5  # Process every 5th frame for speed
-  max_video_age_hours: 24  # Ignore videos older than 24 hours
+  skip_frames: 5         # Process every 5th frame for speed
+  max_video_age_hours: 0 # 0 = no age filter (required for multi-day testing)
 
 # HuggingFace model configuration
 model:
-  name: "facebook/detr-resnet-50"
-  # Alternative models:
-  # "hustvl/yolos-tiny" - faster
-  # "google/owlvit-base-patch32" - text-based detection
-  confidence_threshold: 0.6
-  device: "cpu"  # or "cuda" if you have GPU
-  
-  # For open-vocabulary models (OWL-ViT)
+  # OWL-ViT: open-vocabulary detector — detects objects by text description.
+  # Required here because screws and coins are not in standard COCO classes.
+  name: "google/owlvit-base-patch32"
+  confidence_threshold: 0.1  # OWL-ViT scores are typically low; 0.05-0.15 works well
+  device: "cpu"              # change to "cuda" if you have a GPU
+
+  # Text queries: describe what to look for in plain language.
+  # Each drawer's part_type below should be one of these strings.
   text_queries:
-    - "screw"
-    - "bolt"
-    - "nut"
-    - "washer"
-    - "small part"
-    - "fastener"
+    - "nails"
+    - "med nails"
 
 # Drawer/partition definitions
-# Adjust coordinates after recording your first video
+# IMPORTANT: Update roi coordinates after recording your first video.
+# roi format: [x1, y1, x2, y2]  (pixels, top-left to bottom-right)
+#
+# Cold-start wizard: draw each partition box on your first video, label it,
+# and this whole section (plus model.text_queries) gets rewritten for you:
+#   python main.py --setup
+#   (or: python scripts/find_roi.py data/videos/<your_first_video>.mp4)
 drawers:
-  partition_1:
-    name: "Section A - Screws"
-    roi: [50, 50, 400, 350]  # [x1, y1, x2, y2] in pixels
-    min_threshold: 15
-    critical_threshold: 5
-    part_type: "M8 screws"
-    
-  partition_2:
-    name: "Section B - Bolts"
-    roi: [450, 50, 800, 350]
-    min_threshold: 20
-    critical_threshold: 8
-    part_type: "M6 bolts"
-    
-  partition_3:
-    name: "Section C - Nuts"
-    roi: [850, 50, 1200, 350]
-    min_threshold: 25
+  big_nails:
+    name: "Big Nails"
+    roi: [130, 687, 483, 1131]
+    min_threshold: 40
     critical_threshold: 10
-    part_type: "Hex nuts"
+    part_type: "nails"
+
+  nails:
+    name: "med nails"
+    roi: [504, 695, 826, 1108]
+    min_threshold: 40
+    critical_threshold: 10
+    part_type: "med nails"
+
+  3:
+    name: "small nails"
+    roi: [142, 1172, 476, 1641]
+    min_threshold: 40
+    critical_threshold: 10
+    part_type: "med nails"
+
+  4:
+    name: "tiny nails"
+    roi: [504, 1170, 855, 1654]
+    min_threshold: 40
+    critical_threshold: 10
+    part_type: "nails"
 
 # Alert configuration
 alerts:
-  enabled: true
+  enabled: false   # set to true and configure email below when ready
   methods:
-    - email
     - log
-  
-  # Email settings
+
   email:
-    enabled: true
-    provider: "sendgrid"  # or "smtp"
+    enabled: false
+    provider: "sendgrid"
     subject_prefix: "[Inventory Alert]"
     include_images: true
-    
-  # Alert rules
+
   rules:
     critical:
-      threshold_type: "below"  # below critical_threshold
+      threshold_type: "below"
       priority: "high"
       immediate_notification: true
-    
     warning:
-      threshold_type: "below"  # below min_threshold
-      priority: "medium"
-      immediate_notification: false
-      
-    restock_needed:
       threshold_type: "below"
-      threshold_percentage: 30  # 30% of baseline
       priority: "medium"
       immediate_notification: false
-  
-  # Rate limiting (avoid spam)
-  cooldown_minutes: 60  # Don't send same alert twice within 60 min
 
-# Daily report configuration
+  cooldown_minutes: 60
+
+  # End-of-night check: after a --process-all batch, compare each drawer's
+  # last recorded count to its first recorded count in that batch. Alert if
+  # it has fallen below this fraction of the initial amount.
+  depletion_threshold: 0.5
+
+# Report configuration
 reports:
   enabled: true
-  schedule:
-    daily: true
-    time: "08:00"  # 8 AM
-    weekends: false
-  
-  include:
-    - summary_statistics
-    - trend_charts
-    - alert_history
-    - low_stock_forecast
-    - video_thumbnails
-  
-  format: "html"  # html, pdf, or both
-  
+  format: "html"
   recipients:
     - "manager@company.com"
-    - "inventory@company.com"
 
-# Database for tracking
+# Database
 database:
   enabled: true
   type: "sqlite"
   path: "data/inventory_tracking.db"
-  
+
 # Logging
 logging:
   level: "INFO"
   file: "logs/inventory_monitor.log"
-  max_bytes: 10485760  # 10MB
+  max_bytes: 10485760
   backup_count: 5
 
 # Processing options
 processing:
-  display_video: false  # Set to true to show video while processing
+  display_video: false

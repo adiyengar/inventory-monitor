@@ -16,12 +16,14 @@ partition_2_20250126_140530.mp4
 partition_3_20250126_141000.mp4
 ```
 
-Format: `{drawer_id}_{YYYYMMDD}_{HHMMSS}.mp4`
+Format: `{drawer_id}_{YYYYMMDD}_{HHMMSS}.{mp4|mov}`
 
-- Use `partition_1`, `partition_2`, or `partition_3`
+- `{drawer_id}` can be anything (e.g. `partition_1`) — it's only used to
+  sort videos by timestamp, not to match a specific config drawer
 - Date: YYYYMMDD (8 digits)
 - Time: HHMMSS (6 digits)
 - Use underscores between parts
+- Both `.mp4` and `.mov`/`.MOV` are accepted
 
 ## ✅ Quick Test Commands
 
@@ -67,9 +69,10 @@ tail -f logs/inventory_monitor.log
 
 ## ⚙️ Before You Start
 
-1. **Adjust ROI coordinates** in `config/config.yaml` based on your drawer layout
-2. **Set thresholds** for each drawer (min and critical counts)
-3. **Test email alerts** - make sure `.env` is configured
+1. **Draw and label partitions**: `python main.py --setup` (click-drag a box per
+   partition on your first video, answer a few prompts — writes ROI coordinates
+   and thresholds straight into `config/config.yaml`)
+2. **Test email alerts** - make sure `.env` is configured
 
 ## 📞 Need Help?
 
