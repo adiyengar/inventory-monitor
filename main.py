@@ -173,12 +173,12 @@ def process_video_file(video_info, config, detector, monitor, db_session, alert_
                          total=video.frame_count//(skip_frames+1),
                          desc="Processing frames"):
             
-            # Detect objects
+            # Detect objects (only if at least one drawer needs owlvit counting)
             detections = detector.detect(
                 frame,
                 confidence_threshold=confidence,
                 text_queries=text_queries
-            )
+            ) if detector else []
             
             # Calculate frame timestamp
             frame_timestamp = timestamp + timedelta(seconds=frame_count/video.fps)
@@ -244,7 +244,8 @@ def process_video_file(video_info, config, detector, monitor, db_session, alert_
                             try:
                                 alert_system.send_alert(alert_data)
                                 alert.sent_at = datetime.now()
-                                logger.warning(f"Alert sent for {drawer_id}: {result['count']} parts (threshold: {result['threshold']})")
+                                unit = "%" if result.get('metric') == 'edge_density' else " parts"
+                                logger.warning(f"Alert sent for {drawer_id}: {result['count']}{unit} (threshold: {result['threshold']})")
                             except Exception as e:
                                 logger.error(f"Failed to send alert: {e}")
                         
@@ -420,12 +421,19 @@ def main():
     alert_system = None
     
     if not args.generate_report:
-        logger.info(f"Loading model: {config['model']['name']}")
-        detector = HuggingFaceDetector(
-            model_name=config['model']['name'],
-            device=config['model'].get('device', 'cpu')
+        needs_owlvit = any(
+            d.get('detection_method', 'owlvit') == 'owlvit'
+            for d in config.get('drawers', {}).values()
         )
-        
+        if needs_owlvit:
+            logger.info(f"Loading model: {config['model']['name']}")
+            detector = HuggingFaceDetector(
+                model_name=config['model']['name'],
+                device=config['model'].get('device', 'cpu')
+            )
+        else:
+            logger.info("No owlvit drawers configured, skipping model load")
+
         monitor = InventoryMonitor(args.config)
         
         # Initialize alert system

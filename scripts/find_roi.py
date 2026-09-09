@@ -3,9 +3,17 @@ Partition setup wizard.
 
 Lets you scrub to a representative frame in a video (e.g. drawer open,
 partitions visible), draw ROI boxes over each partition, then asks for
-each partition's id, display name, part_type, and alert thresholds, and
+each partition's id, display name, detection method, and thresholds, and
 writes the result straight into config/config.yaml (backing up the
 previous config as config/config.yaml.bak first).
+
+Two detection methods per partition:
+  - owlvit: OWL-ViT object counting (part_type, min/critical thresholds) —
+    works when individual items are distinguishable.
+  - edge_density: Canny edge-density state detection (full/low/empty) for
+    dense piles of small parts (nails, screws) that OWL-ViT can't count
+    individually. The frame you draw THIS partition's box on is used as
+    the "full" calibration reference, so make sure it's actually full.
 
 Usage:
     python scripts/find_roi.py [video_path] [--config config/config.yaml] [--frame N]
@@ -33,6 +41,9 @@ from pathlib import Path
 
 import cv2
 import yaml
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from src.core.edge_density import edge_density
 
 drawing = False
 rois = []
@@ -181,15 +192,25 @@ def prompt_int(text, default):
         return default
 
 
+def prompt_float(text, default):
+    value = prompt(text, str(default))
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        print(f"  Not a number, using default ({default})")
+        return default
+
+
 def slugify(name, fallback):
     slug = re.sub(r"[^a-z0-9]+", "_", name.strip().lower()).strip("_")
     return slug or fallback
 
 
-def label_partitions(rois, existing_text_queries):
+def label_partitions(frame, rois, existing_text_queries):
     """Interactively collect metadata for each drawn ROI box."""
     text_queries = list(existing_text_queries)
     drawers = {}
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     print("\n--- Label each partition ---")
     for i, (x1, y1, x2, y2) in enumerate(rois, start=1):
@@ -199,26 +220,50 @@ def label_partitions(rois, existing_text_queries):
         display_name = prompt("  Display name", f"Partition {i}")
         partition_id = slugify(prompt("  Partition id", default_id), default_id)
 
-        if text_queries:
-            print("  Existing part types: " + ", ".join(f"{n+1}={q}" for n, q in enumerate(text_queries)))
-        choice = prompt("  Part type (number to reuse, or type a new one)", text_queries[0] if text_queries else "part")
-        if choice.isdigit() and 1 <= int(choice) <= len(text_queries):
-            part_type = text_queries[int(choice) - 1]
+        method_choice = prompt(
+            "  Detection method: 1=owlvit (count individual items), "
+            "2=edge_density (full/low/empty, for dense small parts)", "1"
+        )
+        method = "edge_density" if method_choice.strip() == "2" else "owlvit"
+
+        if method == "edge_density":
+            print("  NOTE: this partition must be FULL in the current frame —")
+            print("  it's used as the full-state calibration reference.")
+            reference = edge_density(gray_frame[y1:y2, x1:x2])
+            print(f"  Captured full reference: {reference*100:.2f}% edge density")
+            low_ratio = prompt_float("  low_ratio (LOW alert below this fraction of full)", 0.5)
+            critical_ratio = prompt_float("  critical_ratio (CRITICAL/empty below this fraction)", 0.15)
+
+            drawers[partition_id] = {
+                "name": display_name,
+                "roi": [x1, y1, x2, y2],
+                "detection_method": "edge_density",
+                "edge_density_full_reference": round(reference, 4),
+                "low_ratio": low_ratio,
+                "critical_ratio": critical_ratio,
+            }
         else:
-            part_type = choice
-            if part_type not in text_queries:
-                text_queries.append(part_type)
+            if text_queries:
+                print("  Existing part types: " + ", ".join(f"{n+1}={q}" for n, q in enumerate(text_queries)))
+            choice = prompt("  Part type (number to reuse, or type a new one)", text_queries[0] if text_queries else "part")
+            if choice.isdigit() and 1 <= int(choice) <= len(text_queries):
+                part_type = text_queries[int(choice) - 1]
+            else:
+                part_type = choice
+                if part_type not in text_queries:
+                    text_queries.append(part_type)
 
-        min_threshold = prompt_int("  min_threshold (LOW alert below this)", 10)
-        critical_threshold = prompt_int("  critical_threshold (CRITICAL alert below this)", 3)
+            min_threshold = prompt_int("  min_threshold (LOW alert below this)", 10)
+            critical_threshold = prompt_int("  critical_threshold (CRITICAL alert below this)", 3)
 
-        drawers[partition_id] = {
-            "name": display_name,
-            "roi": [x1, y1, x2, y2],
-            "min_threshold": min_threshold,
-            "critical_threshold": critical_threshold,
-            "part_type": part_type,
-        }
+            drawers[partition_id] = {
+                "name": display_name,
+                "roi": [x1, y1, x2, y2],
+                "detection_method": "owlvit",
+                "min_threshold": min_threshold,
+                "critical_threshold": critical_threshold,
+                "part_type": part_type,
+            }
 
     return drawers, text_queries
 
@@ -229,9 +274,16 @@ def format_drawers_block(drawers):
         lines.append(f"  {did}:")
         lines.append(f'    name: "{d["name"]}"')
         lines.append(f'    roi: [{", ".join(str(v) for v in d["roi"])}]')
-        lines.append(f'    min_threshold: {d["min_threshold"]}')
-        lines.append(f'    critical_threshold: {d["critical_threshold"]}')
-        lines.append(f'    part_type: "{d["part_type"]}"')
+        if d.get("detection_method") == "edge_density":
+            lines.append('    detection_method: "edge_density"')
+            lines.append(f'    edge_density_full_reference: {d["edge_density_full_reference"]}')
+            lines.append(f'    low_ratio: {d["low_ratio"]}')
+            lines.append(f'    critical_ratio: {d["critical_ratio"]}')
+        else:
+            lines.append('    detection_method: "owlvit"')
+            lines.append(f'    min_threshold: {d["min_threshold"]}')
+            lines.append(f'    critical_threshold: {d["critical_threshold"]}')
+            lines.append(f'    part_type: "{d["part_type"]}"')
         lines.append("")
     while lines and lines[-1] == "":
         lines.pop()
@@ -346,7 +398,7 @@ def main():
         return
 
     existing_queries = config.get("model", {}).get("text_queries", [])
-    drawers, text_queries = label_partitions(rois, existing_queries)
+    drawers, text_queries = label_partitions(frame, rois, existing_queries)
 
     updated_text = replace_block(config_text, r"^drawers:\s*$", format_drawers_block(drawers))
     updated_text = replace_block(updated_text, r"^\s*text_queries:\s*$", format_text_queries_block(text_queries))

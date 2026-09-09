@@ -25,13 +25,10 @@ import sys
 from pathlib import Path
 
 import cv2
-import numpy as np
 import yaml
 
-
-def edge_density(gray_roi):
-    edges = cv2.Canny(gray_roi, 50, 150)
-    return float(np.count_nonzero(edges)) / edges.size
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from src.core.edge_density import edge_density
 
 
 def pick_best_frame(video_path, n_samples=6):

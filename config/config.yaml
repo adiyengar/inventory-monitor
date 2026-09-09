@@ -43,30 +43,30 @@ model:
 #   python main.py --setup
 #   (or: python scripts/find_roi.py data/videos/<your_first_video>.mp4)
 drawers:
-  big_nails:
-    name: "Big Nails"
-    roi: [130, 687, 483, 1131]
-    min_threshold: 40
-    critical_threshold: 10
-    part_type: "nails"
-
   nails:
     name: "med nails"
-    roi: [504, 695, 826, 1108]
+    roi: [553, 796, 881, 968]
     min_threshold: 40
     critical_threshold: 10
     part_type: "med nails"
 
+  big_nails:
+    name: "Big Nails"
+    roi: [135, 810, 494, 964]
+    min_threshold: 40
+    critical_threshold: 10
+    part_type: "nails"
+
   3:
     name: "small nails"
-    roi: [142, 1172, 476, 1641]
+    roi: [107, 1101, 504, 1274]
     min_threshold: 40
     critical_threshold: 10
     part_type: "med nails"
 
   4:
     name: "tiny nails"
-    roi: [504, 1170, 855, 1654]
+    roi: [567, 1088, 935, 1300]
     min_threshold: 40
     critical_threshold: 10
     part_type: "nails"
